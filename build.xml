@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<project default="all" name="CodeInjector">
+    <target name="init">
+        <path id="slee">
+            <pathelement location="lib/slee.jar"/>
+        </path>
+        <taskdef classname="org.mobicents.eclipslee.ant.SbbJar"
+            classpath="lib/slee-tasks.jar" name="sbbjar"/>
+        <taskdef classname="org.mobicents.eclipslee.ant.EventJar"
+            classpath="lib/slee-tasks.jar" name="eventjar"/>
+        <taskdef classname="org.mobicents.eclipslee.ant.ProfileSpecJar"
+            classpath="lib/slee-tasks.jar" name="profilespecjar"/>
+        <taskdef classname="org.mobicents.eclipslee.ant.DeployableJar"
+            classpath="lib/slee-tasks.jar" name="deployablejar"/>
+        <taskdef
+            classname="org.mobicents.eclipslee.ant.ResourceAdaptorTypeJar"
+            classpath="lib/slee-tasks.jar" name="resourceadaptortypejar"/>
+        <taskdef
+            classname="org.mobicents.eclipslee.ant.ResourceAdaptorJar"
+            classpath="lib/slee-tasks.jar" name="resourceadaptorjar"/>
+        <path id="ExternalComponents">
+            <pathelement location="lib/DU/standard-components-du.jar/jars/standard-events-jar-2.4.1.FINAL.jar"/>
+            <pathelement location="lib/DU/standard-components-du.jar/jars/standard-events11-jar-2.4.1.FINAL.jar"/>
+            <pathelement location="lib/DU/standard-components-du.jar/jars/standard-profiles-jar-2.4.1.FINAL.jar"/>
+            <pathelement location="lib/DU/standard-components-du.jar/jars/standard-profiles11-jar-2.4.1.FINAL.jar"/>
+        	<pathelement location="/usr/local/Mobicents-JSLEE/jboss-5.1.0.GA/lib/javassist.jar"/>
+        	<pathelement location="lib/truezip-samples-7.7.2-jar-with-dependencies.jar"/>
+        	<pathelement location="lib/mobicents-1.0.jar"/>
+        </path>
+        <path id="path-CodeInjector-sbb">
+            <pathelement location="/home/esteban/Workspace/Telcomp-Workspace/CodeInjector/lib/DU/standard-components-du.jar/jars/standard-events11-jar-2.4.1.FINAL.jar"/>
+        </path>
+    </target>
+    <target depends="init" name="all">
+        <ant target="build-CodeInjector-sbb"/>
+        <ant target="build-codeinjector-DU"/>
+    </target>
+    <target depends="init" name="clean">
+        <ant target="clean-CodeInjector-sbb"/>
+        <ant target="clean-codeinjector-DU"/>
+    </target>
+    <target depends="init" name="build-CodeInjector-sbb">
+        <mkdir dir="classes/CodeInjector-sbb"/>
+        <mkdir dir="jars/"/>
+        <javac destdir="classes/CodeInjector-sbb"
+            includes="org/telcomp/sbb/CodeInjectorSbb.java" srcdir="src" includeantruntime="false">
+            <classpath>
+                <path refid="path-CodeInjector-sbb"/>
+                <path refid="ExternalComponents"/>
+                <path refid="slee"/>
+            </classpath>
+        </javac>
+        <copy file="src/org/telcomp/sbb/CodeInjector-sbb-jar.xml" tofile="classes/CodeInjector-sbb/sbb-jar.xml"/>
+        <jar basedir="classes/CodeInjector-sbb"
+            destfile="jars/CodeInjector-sbb.jar" includes="org/telcomp/sbb/*.class">
+            <metainf dir="classes/CodeInjector-sbb" includes="sbb-jar.xml"/>
+        </jar>
+    </target>
+    <target name="clean-CodeInjector-sbb">
+        <delete file="jars/CodeInjector-sbb.jar"/>
+        <delete dir="classes/CodeInjector-sbb"/>
+    </target>
+    <target depends="build-CodeInjector-sbb" name="build-codeinjector-DU">
+        <mkdir dir="classes/codeinjector-DU"/>
+        <copy
+            file="src/org/telcomp/service/codeinjector-deployable-unit.xml" tofile="classes/codeinjector-DU/deployable-unit.xml"/>
+        <jar jarfile="jars/codeinjector-DU.jar">
+            <metainf dir="classes/codeinjector-DU" includes="deployable-unit.xml"/>
+            <fileset dir="" includes="jars/CodeInjector-sbb.jar"/>
+            <fileset dir="." includes="src/org/telcomp/service/codeinjector-service.xml"/>
+        </jar>
+    </target>
+    <target name="clean-codeinjector-DU">
+        <delete file="jars/codeinjector-DU.jar"/>
+        <delete dir="classes/codeinjector-DU"/>
+    </target>
+</project>
