@@ -44,7 +44,7 @@ public abstract class CodeInjectorSbb implements javax.slee.Sbb {
 	private final String sbbJarCmpt = "CS-sbb.jar";
 	private final String sbbClassCmpt = "CSSbb";
 	private final String sbbPath = "org.telcomp.sbb.";
-	private final String workspacePath = "/home/julian/Telcomp-Workspace/";
+	private final String JarsPath = "/usr/local/Mobicents-JSLEE/neededJars/";
 	static String sbbClassName = "";
 	static List<String> branchFields = new ArrayList<String>();
 
@@ -114,7 +114,8 @@ public abstract class CodeInjectorSbb implements javax.slee.Sbb {
 			ClassPool cp = ClassPool.getDefault();
 			cp.insertClassPath(newTempDir + serviceName + sbbJarCmpt);
 			cp.insertClassPath(deployPath + "mobicents-slee/lib/jain-slee-1.1.jar");
-			cp.insertClassPath(workspacePath + "WebServiceInvocator/jars/EndWSInvocator-event.jar");
+			cp.insertClassPath(JarsPath + "EndWSInvocator-event.jar");
+			cp.insertClassPath(JarsPath + "servlet-api-5.0.16.jar");
 			
 
 			CtClass ctclass = cp.get(sbbPath + serviceName + sbbClassCmpt);
@@ -149,7 +150,12 @@ public abstract class CodeInjectorSbb implements javax.slee.Sbb {
 			// Modificar metodo para establecer una Alarma
 			// Contiene tambien procesamiento para agregar branchFields a mensaje de Alarma
 			CtMethod methodAlarm = ctclass.getDeclaredMethod("onEndWSInvocatorEvent");
-			methodAlarm.insertBefore("{System.out.println(\"Monitoring Web Service Response...\");" +
+			String formId = "\"hiddenDiv\"";
+			String formStatus = "\"visibility:hidden\"";
+			String href = this.getReloadLink(ctclass, serviceName);
+			//String href = "\"http://localhost:8080/mobicents/LinkedInJobNotificator?&userid=1061698729\"";
+			String language = "\"Javascript\"";
+			methodAlarm.insertBefore("{System.out.println(\"Monitoring Service Inserted Code...\");" +
 					"if (!$1.isSuccess()){" +
 					"try{Class fieldClass = "+sbbPath+serviceName+sbbClassCmpt+".class;" +
 					"for (int i=1; i<=branchSize2; i++){" +
@@ -158,7 +164,19 @@ public abstract class CodeInjectorSbb implements javax.slee.Sbb {
 					"valorBranch2 = valorMensaje2;}" +
 					"this.alarmFacility2.raiseAlarm(javax.slee.management.SbbNotification.ALARM_NOTIFICATION_TYPE," +
 					"\"01\",javax.slee.facilities.AlarmLevel.MAJOR," +
-					"\";"+serviceName+";\"+$1.getOperationName()+\";\"+mainControlFlow+\";\"+valorBranch2+\"\"); return;}" +
+					"\";"+serviceName+";\"+$1.getOperationName()+\";\"+mainControlFlow+\";\"+valorBranch2+\"\"); " +
+					"java.io.PrintWriter w = httpResponse.getWriter();" +
+					"w.print(\"<html><body><center><h2>"+serviceName+" execution failed due to a problem with \"+$1.getOperationName()+\"" +
+					" operation, proceeding to reconfigure it...</h2><br><br><br><form id=\""+formId+"\" style=\""+formStatus+"\">" +
+					"<h3>Reconfiguration process finished try to execute the service again</h3><br><a href=\""+href+"\">Execute Again</a>" +
+					"</form><script language=\""+language+"\">" +
+					"setTimeout(function(){document.getElementById('hiddenDiv').style.visibility = 'visible';}, 5000);" +
+					"</script></center></body></html>\");" +
+					"w.flush();httpResponse.flushBuffer();httpAci.detach(this.sbbContext.getSbbLocalObject());" +
+					"this.getEventContext().resumeDelivery();" +
+					"for(int a=0; a<this.sbbContext.getActivities().length; a++){" +
+					"this.sbbContext.getActivities()[a].detach(this.sbbContext.getSbbLocalObject());}" +
+					"return;}" +
 					"catch(java.lang.Exception e){e.printStackTrace();};}}");
 
 			// Exportar clase modificada
@@ -179,6 +197,24 @@ public abstract class CodeInjectorSbb implements javax.slee.Sbb {
 			e.printStackTrace();
 		}
 
+	}
+	
+	private String getReloadLink(CtClass ctclass, String serviceName){
+		String queryParams = "";
+		try{
+			for(CtField ctf : ctclass.getDeclaredFields()){
+				if(ctf.getName().indexOf("startpn") >= 0){
+					queryParams = queryParams.concat("\"+"+ctf.getName() + "+\"=\"+" + 
+				ctclass.getField(ctf.getName().replaceAll("n", "v")).getName()+"+\"&\"");
+				}
+			}
+		} catch(Exception e){
+			e.printStackTrace();
+		}
+		String link = "\"http://\"+System.getProperty(\"jboss.bind.address\")+\":8080/mobicents/"+serviceName+"?"+queryParams+"";
+		link = link.substring(0, link.length()-2);
+		link = link.concat("\"");
+		return link;
 	}
 
 	private String getSbbJar(String serviceName){
