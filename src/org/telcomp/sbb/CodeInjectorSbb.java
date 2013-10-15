@@ -1,7 +1,11 @@
 package org.telcomp.sbb;
 
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -24,6 +28,7 @@ import javax.slee.SbbContext;
 import javax.slee.ServiceID;
 import javax.slee.management.ServiceManagementMBean;
 import javax.slee.management.ServiceState;
+import javax.slee.serviceactivity.ServiceActivity;
 import javax.slee.serviceactivity.ServiceActivityFactory;
 import javax.slee.serviceactivity.ServiceStartedEvent;
 
@@ -45,65 +50,51 @@ public abstract class CodeInjectorSbb implements javax.slee.Sbb {
 	private final String sbbClassCmpt = "CSSbb";
 	private final String sbbPath = "org.telcomp.sbb.";
 	private final String JarsPath = "/usr/local/Mobicents-JSLEE/neededJars/";
-	static String sbbClassName = "";
-	static List<String> branchFields = new ArrayList<String>();
+	private static String sbbClassName = "";
+	private final String listFileName = tempDirPath + "servicesList.txt";
+	private static List<String> branchFields = new ArrayList<String>();
 
-	ServiceID [] serviceList;
-	String [] params = { "javax.slee.management.ServiceState" };
-	Object [] args = {ServiceState.ACTIVE};
-	
-	List<String> tempServices = new ArrayList<String>();
-	List<String> services = new ArrayList<String>();
-	List<String> newService = new ArrayList<String>();
-	public boolean servicesflag = false;
-	public int contServices=0;
+	private final String [] params = { "javax.slee.management.ServiceState" };
+	private final Object [] args = {ServiceState.ACTIVE};
+
 	
 	public void onServiceStartedEvent(ServiceStartedEvent event, ActivityContextInterface aci) {
 		aci.detach(this.sbbContext.getSbbLocalObject());
-
-		try {
+		ServiceActivity sa = saf.getActivity();
+		ServiceID [] serviceList;
+		
+		try{
 			serviceList = (ServiceID[]) SleeContainer.lookupFromJndi().getMBeanServer().
 					invoke(new ObjectName(ServiceManagementMBean.OBJECT_NAME),"getServices", args ,params);
-			if(!servicesflag){
+			
+			if(sa.equals(aci.getActivity())){
+				File serviceListFile = createServiceList();
 				System.out.println("*********************Initial Services Base****************");
 				for (int i=0; i<serviceList.length; i++){
-					tempServices.add(serviceList[i].getName());
 					System.out.println("Service "+(i+1)+": "+serviceList[i].getName());
+					if(i==0){
+						writeServiceList(serviceListFile, serviceList[i].getName(), false);
+					} else{
+						writeServiceList(serviceListFile, serviceList[i].getName(), true);
+					}
 				}
 				System.out.println("*********************Initial Services Base****************");
-				
-				if(services.isEmpty()){
-					services = new ArrayList<String>(tempServices);
-				}
-				servicesflag = true;				
 			} else{
-				for(int j=0; j<serviceList.length; j++){
-					services.add(serviceList[j].getName());
-				}
-			}
-			
-			if(tempServices.size() < services.size()){
-				String tempServiceName="";
 				System.out.println("A new service has been deployed");
-				newService = new ArrayList<String>(services);
-				newService.removeAll(tempServices);
-				System.out.println("The new service is: "+newService.get(0));
-				
-				if(newService.get(0).indexOf("Convergent Service") >= 0){
-					tempServiceName = newService.get(0).replace(" ", "");
+				if(event.getService().getName().indexOf("Convergent Service") >= 0 
+						&& !this.checkExistingCS(new File(listFileName), event.getService().getName())){
+					this.writeServiceList(new File(listFileName), event.getService().getName(), true);
+					System.out.println("It's a Covergent Service, proceeding to insert monitoring code...");
+					String tempServiceName = event.getService().getName().replace(" ", "");
 					sbbClassName = tempServiceName.replace("ConvergentService", ""); 
 					System.out.println("SBB Class Name: "+sbbClassName);
 					instrumentCode(sbbClassName);
 				} else{
-					System.out.println("The service deployed is not a convergent service.");
+					System.out.println("The service deployed is not a convergent service or has been instrumented already");
 				}
 			}
 			
-			tempServices = new ArrayList<String>(services);
-			services.clear();
-			newService.clear();
-			
-		} catch (Exception e) {
+		} catch(Exception e){
 			e.printStackTrace();
 		}
 	}
@@ -117,7 +108,6 @@ public abstract class CodeInjectorSbb implements javax.slee.Sbb {
 			cp.insertClassPath(JarsPath + "EndWSInvocator-event.jar");
 			cp.insertClassPath(JarsPath + "servlet-api-5.0.16.jar");
 			
-
 			CtClass ctclass = cp.get(sbbPath + serviceName + sbbClassCmpt);
 
 			// Se leen los campos declarados en la clase del servicio a monitorear
@@ -211,7 +201,7 @@ public abstract class CodeInjectorSbb implements javax.slee.Sbb {
 		} catch(Exception e){
 			e.printStackTrace();
 		}
-		String link = "\"http://\"+System.getProperty(\"jboss.bind.address\")+\":8080/mobicents/"+serviceName+"?"+queryParams+"";
+		String link = "\"http://\"+System.getProperty(\"jboss.bind.address\")+\":8080/mobicents/"+serviceName+"?"+queryParams;
 		link = link.substring(0, link.length()-2);
 		link = link.concat("\"");
 		return link;
@@ -284,15 +274,62 @@ public abstract class CodeInjectorSbb implements javax.slee.Sbb {
 			e.printStackTrace();
 		}
 	}
+	
+	private File createServiceList(){
+		File serviceList = null;
+		try{
+			serviceList = new File(tempDirPath+"servicesList.txt");
+			if(serviceList.exists()){
+				serviceList.delete();
+				serviceList = new File(tempDirPath+"servicesList.txt");
+			}
+		} catch(Exception e){
+			e.printStackTrace();
+		}
+		return serviceList;
+	}
+	
+	private void writeServiceList(File file, String name, boolean flag){
+		try{
+			BufferedWriter writer = new BufferedWriter(new FileWriter(file, true));
+			if(flag){
+				writer.newLine();
+			}
+			writer.append(name);
+			writer.close();
+		} catch(Exception e){
+			e.printStackTrace();
+		}
+	}
+	
+	private boolean checkExistingCS(File file, String serviceName){
+		boolean exists = false;
+		
+		try{
+			 BufferedReader br = new BufferedReader(new FileReader(file));
+		     String line = br.readLine();
+		     
+		     while(line != null){
+		    	 if(line.equals(serviceName)){
+		    		 exists = true;
+		    		 break;
+		    	 }
+		    	 line = br.readLine();
+		     }
+		     br.close();
+		} catch(Exception e){
+			e.printStackTrace();
+		}
+		
+		return exists;
+	}
 
 	// TODO: Perform further operations if required in these methods.
 	public void setSbbContext(SbbContext context) {
 		this.sbbContext = context;
 		try {
-			Context ctx = (Context) new InitialContext()
-					.lookup("java:comp/env");
-			saf = (ServiceActivityFactory) ctx
-					.lookup("slee/serviceactivity/factory");
+			Context ctx = (Context) new InitialContext().lookup("java:comp/env");
+			saf = (ServiceActivityFactory) ctx.lookup("slee/serviceactivity/factory");
 		} catch (NamingException e) {
 			e.printStackTrace();
 		}
