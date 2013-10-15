@@ -172,10 +172,14 @@ public abstract class CodeInjectorSbb implements javax.slee.Sbb {
 			// Modificar metodo para establecer una Alarma
 			// Contiene tambien procesamiento para agregar branchFields a mensaje de Alarma
 			CtMethod methodAlarm = ctclass.getDeclaredMethod("onEndWSInvocatorEvent");
-			String formId = "\"hiddenDiv\"";
+			String formId = "\"hiddenForm\"";
 			String formStatus = "\"visibility:hidden\"";
 			String href = this.getReloadLink(ctclass, serviceName);
 			String language = "\"Javascript\"";
+			String imgSrc = "\"http://www.wiebold.com/images/animation_processing.gif\"";
+			String imgStatus = "\"visibility:visible\"";
+			String imgId = "\"processImg\"";
+			
 			methodAlarm.insertBefore("{System.out.println(\"Monitoring Service Inserted Code...\");" +
 					"if (!$1.isSuccess()){" +
 					"try{Class fieldClass = "+sbbPath+serviceName+sbbClassCmpt+".class;" +
@@ -188,13 +192,15 @@ public abstract class CodeInjectorSbb implements javax.slee.Sbb {
 					"\";"+serviceName+";\"+$1.getOperationName()+\";\"+mainControlFlow+\";\"+valorBranch2+\"userid-\"+startpv0+\";"+contextInfo+"\"); " +
 					"java.io.PrintWriter w = httpResponse.getWriter();" +
 					"w.print(\"<html><body><center><h2>"+serviceName+" execution failed due to a problem with \"+$1.getOperationName()+\"" +
-					" operation, proceeding to reconfigure it...</h2><br><br><br><form id=\""+formId+"\" style=\""+formStatus+"\">" +
+					" operation, proceeding to reconfigure it...</h2><br><br><img id=\""+imgId+"\" src=\""+imgSrc+"\" style=\""+imgStatus+"\">" +
+					"<br><form id=\""+formId+"\" style=\""+formStatus+"\">" +
 					"<h3>Reconfiguration process finished try to execute the service again</h3><br><a href=\""+href+"\">Execute Again</a>" +
 					"</form><script language=\""+language+"\">" +
-					"setTimeout(function(){document.getElementById('hiddenDiv').style.visibility = 'visible';}, 5000);" +
+					"setTimeout(function(){document.getElementById('hiddenForm').style.visibility = 'visible'; " +
+					"document.getElementById('processImg').style.visibility = 'hidden';}, 5000);" +
 					"</script></center></body></html>\");" +
 					"w.flush();httpResponse.flushBuffer();httpAci.detach(this.sbbContext.getSbbLocalObject());" +
-					"this.getEventContext().resumeDelivery();" +
+					"this.getEventContext().resumeDelivery(); valorBranch2=\"\";" +
 					"for(int a=0; a<this.sbbContext.getActivities().length; a++){" +
 					"this.sbbContext.getActivities()[a].detach(this.sbbContext.getSbbLocalObject());}" +
 					"return;}" +
