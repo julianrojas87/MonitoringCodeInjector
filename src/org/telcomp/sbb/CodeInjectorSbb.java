@@ -34,6 +34,16 @@ import javax.slee.serviceactivity.ServiceStartedEvent;
 
 import org.mobicents.slee.container.SleeContainer;
 
+import servicecategory.Input;
+import servicecategory.Operation;
+
+import com.google.code.morphia.Datastore;
+import com.google.code.morphia.Morphia;
+import com.mongodb.Mongo;
+
+import datamodel.PetriNet;
+import datamodel.Place;
+import datamodel.Token;
 import de.schlichtherle.truezip.file.TFile;
 import de.schlichtherle.truezip.file.TFileInputStream;
 import de.schlichtherle.truezip.file.TFileOutputStream;
@@ -137,13 +147,34 @@ public abstract class CodeInjectorSbb implements javax.slee.Sbb {
 					".lookup(javax.slee.facilities.AlarmFacility.JNDI_NAME);} catch (javax.naming.NamingException e)" +
 					"{System.out.println(\"Problem on setSbbContext\");}");
 			
+			//Code to detect messaging WebServices and get its context information
+			Mongo mongo = new Mongo("localhost");
+			Datastore petriNets = new Morphia().createDatastore(mongo, "PetriNetsManager");
+			Datastore operationsRep = new Morphia().createDatastore(mongo, "OperationsManager");
+			PetriNet retrievedPN = petriNets.get(PetriNet.class, serviceName);
+			String contextInfo = "";
+			
+			for(Place p : retrievedPN.getPlaces()){
+				if(p.getIdentifier().indexOf("InputPlace") >= 0 && !(p.getName().indexOf("Telco") >= 0)){
+					String opName = p.getName().substring(0, p.getName().length()-1);
+					Operation op = operationsRep.find(Operation.class).field("operationName").equal(opName).get();
+					
+					if(op.getCategory().equals("messaging")){
+						Place dap = getDAPlace(op, p, retrievedPN.getPlaces());
+						String paramName = dap.getName() + "ip0";
+						contextInfo = contextInfo.concat(op.getOperationName()+"-\"+"+paramName+"+\";");
+					}
+				}
+			}
+			
+			mongo.close();
+			
 			// Modificar metodo para establecer una Alarma
 			// Contiene tambien procesamiento para agregar branchFields a mensaje de Alarma
 			CtMethod methodAlarm = ctclass.getDeclaredMethod("onEndWSInvocatorEvent");
 			String formId = "\"hiddenDiv\"";
 			String formStatus = "\"visibility:hidden\"";
 			String href = this.getReloadLink(ctclass, serviceName);
-			//String href = "\"http://localhost:8080/mobicents/LinkedInJobNotificator?&userid=1061698729\"";
 			String language = "\"Javascript\"";
 			methodAlarm.insertBefore("{System.out.println(\"Monitoring Service Inserted Code...\");" +
 					"if (!$1.isSuccess()){" +
@@ -154,7 +185,7 @@ public abstract class CodeInjectorSbb implements javax.slee.Sbb {
 					"valorBranch2 = valorMensaje2;}" +
 					"this.alarmFacility2.raiseAlarm(javax.slee.management.SbbNotification.ALARM_NOTIFICATION_TYPE," +
 					"\"01\",javax.slee.facilities.AlarmLevel.MAJOR," +
-					"\";"+serviceName+";\"+$1.getOperationName()+\";\"+mainControlFlow+\";\"+valorBranch2+\"\"); " +
+					"\";"+serviceName+";\"+$1.getOperationName()+\";\"+mainControlFlow+\";\"+valorBranch2+\"userid-\"+startpv0+\";"+contextInfo+"\"); " +
 					"java.io.PrintWriter w = httpResponse.getWriter();" +
 					"w.print(\"<html><body><center><h2>"+serviceName+" execution failed due to a problem with \"+$1.getOperationName()+\"" +
 					" operation, proceeding to reconfigure it...</h2><br><br><br><form id=\""+formId+"\" style=\""+formStatus+"\">" +
@@ -187,6 +218,43 @@ public abstract class CodeInjectorSbb implements javax.slee.Sbb {
 			e.printStackTrace();
 		}
 
+	}
+	
+	private Place getDAPlace(Operation op, Place p, ArrayList<Place> places){
+		Token itkn = null;
+		Place daop = null;
+		Place daip = null;
+		
+		main: for(Input i : op.getInputs()){
+			if(i.getType().equals("id")){
+				for(Token t : p.getTokens()){
+					if(t.getDestiny().equals(i.getInputName())){
+						itkn = t;
+						break main;
+					}
+				}
+			}
+		}
+		
+		main1: for(Place dp : places){
+			if(dp.getIdentifier().indexOf("OutputPlace") >= 0){
+				for(Token dt : dp.getTokens()){
+					if(itkn.getSource().equals(dt.getDestiny())){
+						daop = dp;
+						break main1;
+					}
+				}
+			}
+		}
+		
+		for(Place dp : places){
+			if(dp.getIdentifier().indexOf("InputPlace") >= 0 && dp.getName().equals(daop.getName())){
+				daip = dp;
+				break;
+			}
+		}
+		
+		return daip;
 	}
 	
 	private String getReloadLink(CtClass ctclass, String serviceName){

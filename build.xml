@@ -26,6 +26,10 @@
         	<pathelement location="/usr/local/Mobicents-JSLEE/jboss-5.1.0.GA/lib/javassist.jar"/>
         	<pathelement location="lib/truezip-samples-7.7.2-jar-with-dependencies.jar"/>
         	<pathelement location="lib/mobicents-1.0.jar"/>
+        	<pathelement location="lib/mongo-2.10.1.jar"/>
+        	<pathelement location="lib/morphia-0.99.jar"/>
+        	<pathelement location="lib/OperationsRepository.jar"/>
+        	<pathelement location="lib/PetriNets.jar"/>
         </path>
         <path id="path-CodeInjector-sbb">
             <pathelement location="/home/esteban/Workspace/Telcomp-Workspace/CodeInjector/lib/DU/standard-components-du.jar/jars/standard-events11-jar-2.4.1.FINAL.jar"/>
