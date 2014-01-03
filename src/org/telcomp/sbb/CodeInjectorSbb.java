@@ -179,6 +179,9 @@ public abstract class CodeInjectorSbb implements javax.slee.Sbb {
 			String imgSrc = "\"http://www.wiebold.com/images/animation_processing.gif\"";
 			String imgStatus = "\"visibility:visible\"";
 			String imgId = "\"processImg\"";
+			String imgId1 = "\"okImg\"";
+			String imgSrc1 = "\"http://www.asalsido.org/asalsido/images/ok.png\"";
+			String imgStatus1 = "\"visibility:hidden\"";
 			
 			methodAlarm.insertBefore("{System.out.println(\"Monitoring Service Inserted Code...\");" +
 					"if (!$1.isSuccess()){" +
@@ -193,12 +196,12 @@ public abstract class CodeInjectorSbb implements javax.slee.Sbb {
 					"java.io.PrintWriter w = httpResponse.getWriter();" +
 					"w.print(\"<html><body><center><h2>"+serviceName+" execution failed due to a problem with \"+$1.getOperationName()+\"" +
 					" operation, proceeding to reconfigure it...</h2><br><br><img id=\""+imgId+"\" src=\""+imgSrc+"\" style=\""+imgStatus+"\">" +
-					"<br><form id=\""+formId+"\" style=\""+formStatus+"\">" +
+					"<img id=\""+imgId1+"\" src=\""+imgSrc1+"\" style=\""+imgStatus1+"\"><br><form id=\""+formId+"\" style=\""+formStatus+"\">" +
 					"<h3>Reconfiguration process finished try to execute the service again</h3><br><a href=\""+href+"\">Execute Again</a>" +
 					"</form><script language=\""+language+"\">" +
 					"setTimeout(function(){document.getElementById('hiddenForm').style.visibility = 'visible'; " +
-					"document.getElementById('processImg').style.visibility = 'hidden';}, 5000);" +
-					"</script></center></body></html>\");" +
+					"document.getElementById('processImg').style.visibility = 'hidden'; document.getElementById('okImg').style.visibility = 'visible';}" +
+					", 5000);</script></center></body></html>\");" +
 					"w.flush();httpResponse.flushBuffer();httpAci.detach(this.sbbContext.getSbbLocalObject());" +
 					"this.getEventContext().resumeDelivery(); valorBranch2=\"\";" +
 					"for(int a=0; a<this.sbbContext.getActivities().length; a++){" +

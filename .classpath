@@ -12,7 +12,7 @@
 	<classpathentry kind="lib" path="lib/truezip-samples-7.7.2-jar-with-dependencies.jar"/>
 	<classpathentry kind="lib" path="lib/mongo-2.10.1.jar"/>
 	<classpathentry kind="lib" path="lib/morphia-0.99.jar"/>
-	<classpathentry kind="lib" path="lib/OperationsRepository.jar"/>
 	<classpathentry kind="lib" path="lib/PetriNets.jar"/>
+	<classpathentry kind="lib" path="lib/OperationsRepository.jar"/>
 	<classpathentry kind="output" path="classes"/>
 </classpath>
