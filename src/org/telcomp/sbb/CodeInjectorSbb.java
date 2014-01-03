@@ -162,7 +162,7 @@ public abstract class CodeInjectorSbb implements javax.slee.Sbb {
 					if(op.getCategory().equals("messaging")){
 						Place dap = getDAPlace(op, p, retrievedPN.getPlaces());
 						String paramName = dap.getName() + "ip0";
-						contextInfo = contextInfo.concat(op.getOperationName()+"-\"+"+paramName+"+\";");
+						contextInfo = contextInfo.concat(p.getName()+"-\"+"+paramName+"+\";");
 					}
 				}
 			}
